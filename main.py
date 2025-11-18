@@ -6,9 +6,10 @@ import shutil
 
 from llm_client import generate_manim_code
 
-PROMPT_TEMPLATE_PATH = "prompt_template.txt" # 提示詞模板路徑
-GENERATED_CODE_PATH = "generated_scene.py" # LLM 產生的 Manim 程式碼儲存位置
-MANIM_CLASS_NAME = "AlgorithmAnimation" # LLM 生成的 Manim 類別名稱
+PROMPT_TEMPLATE_PATH = "prompt_template.txt"  # 提示詞模板路徑
+# 將 LLM 產生的程式碼與手寫範例（generated_scene.py）分開，避免被覆蓋
+GENERATED_CODE_PATH = "generated_algo_scene.py"  # LLM 產生的 Manim 程式碼儲存位置
+MANIM_CLASS_NAME = "AlgorithmAnimation"  # LLM 生成的 Manim 類別名稱
 
 
 def main():
@@ -21,10 +22,11 @@ def main():
     generated_code = generate_manim_code(prompt)       # 使用 LLM 生成 Manim 程式碼
 
     # 檢查生成程式碼是否有效，若有效則儲存程式碼、清除之前的輸出、渲染動畫
-    if generated_code and "class AlgorithmAnimation(Scene):" in generated_code:
+    # 新版：AlgorithmAnimation 應該繼承 BaseAlgorithmScene，因此只檢查類別名稱存在即可
+    if generated_code and "class AlgorithmAnimation" in generated_code:
         save_code(generated_code)        # 儲存程式碼
         clean_previous_outputs()         # 清除之前的輸出
-        render_animation()               # 渲染動畫
+        render_animation(input_data)     # 渲染動畫，並把使用者輸入傳給 Manim 子程序
     else:
         print("\n抱歉，無法生成有效的 Manim 程式碼。請檢查您的輸入或 API 金鑰。")
 
@@ -46,7 +48,7 @@ def clean_previous_outputs():
     partial_dir = os.path.join(
         "media",
         "videos",
-        "generated_scene",
+        "generated_algo_scene",
         "720p30",
         "partial_movie_files",
         "AlgorithmAnimation",
@@ -55,7 +57,7 @@ def clean_previous_outputs():
 
     # 如需刪除最終影片（同名場景）
     final_mp4 = os.path.join(
-        "media", "videos", "generated_scene", "720p30", "AlgorithmAnimation.mp4"
+        "media", "videos", "generated_algo_scene", "720p30", "AlgorithmAnimation.mp4"
     )
     if os.path.isfile(final_mp4):
         os.remove(final_mp4)
@@ -65,19 +67,26 @@ def clean_previous_outputs():
     shutil.rmtree(texts_dir, ignore_errors=True)
 
 
-def _run_manim(quality_flag: str) -> bool:
+def _run_manim(quality_flag: str, input_data: str) -> bool:
+    """
+    執行 manim，並透過環境變數 ALGO_USER_INPUT_DATA
+    將使用者輸入字串傳遞給子程序中的 AlgorithmAnimation。
+    """
     # -pqm 等同 -p -qm；若出現相容問題，改用分開旗標
     cmd = ["manim", quality_flag, GENERATED_CODE_PATH, MANIM_CLASS_NAME]
     alt_cmd = ["manim", "-p", "-qm", GENERATED_CODE_PATH, MANIM_CLASS_NAME]
 
+    env = os.environ.copy()
+    env["ALGO_USER_INPUT_DATA"] = input_data
+
     try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         return True
     except subprocess.CalledProcessError as e:
         # 若不支援 -pqm，嘗試以 -p -qm
         if "no such option" in (e.stderr or ""):
             try:
-                subprocess.run(alt_cmd, capture_output=True, text=True, check=True)
+                subprocess.run(alt_cmd, capture_output=True, text=True, check=True, env=env)
                 return True
             except subprocess.CalledProcessError as e2:
                 print(e2.stderr)
@@ -87,23 +96,31 @@ def _run_manim(quality_flag: str) -> bool:
 
 
 def _find_latest_video() -> str | None:
-    pattern = os.path.join("media", "videos", "generated_scene", "**", f"{MANIM_CLASS_NAME}.mp4")
+    pattern = os.path.join("media", "videos", "generated_algo_scene", "**", f"{MANIM_CLASS_NAME}.mp4")
     matches = glob.glob(pattern, recursive=True)
     if not matches:
         return None
     return max(matches, key=os.path.getmtime)
 
 
-def render_animation():
+def render_animation(input_data: str):
     print("=" * 50)
     print("正在使用 Manim 渲染動畫…（優先 -pqm，失敗回退 -pql）")
     print("這可能需要一點時間，請耐心等候。")
     print("=" * 50)
 
-    if not _run_manim("-pqm"):
+    if not _run_manim("-pqm", input_data):
         print("改用 -pql 重新嘗試…")
         try:
-            subprocess.run(["manim", "-pql", GENERATED_CODE_PATH, MANIM_CLASS_NAME], capture_output=True, text=True, check=True)
+            env = os.environ.copy()
+            env["ALGO_USER_INPUT_DATA"] = input_data
+            subprocess.run(
+                ["manim", "-pql", GENERATED_CODE_PATH, MANIM_CLASS_NAME],
+                capture_output=True,
+                text=True,
+                check=True,
+                env=env,
+            )
         except subprocess.CalledProcessError as e:
             print("\n❌ Manim 渲染失敗！ ❌")
             print("AI 生成的程式碼可能存在語法或邏輯錯誤。")
