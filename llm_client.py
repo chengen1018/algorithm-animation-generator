@@ -30,7 +30,7 @@ def _extract_code_block(text: str) -> str:
     return text.strip()
 
 
-def generate_manim_code(prompt: str, model_name: str = "gemini-2.5-pro") -> Optional[str]:
+def generate_manim_code(prompt: str, model_name: str = "gemini-3-pro-preview") -> Optional[str]:
     """
     使用 Google Gemini 產生 Manim 程式碼。
 
