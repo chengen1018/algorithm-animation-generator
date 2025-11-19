@@ -7,9 +7,6 @@ __pycache__/
 # Generated media files (videos, images, etc.); usually large and can be regenerated
 media/
 
-# Program output/result directory; can be regenerated
-result/
-
 # Environment variables file; often contains secrets/API keys and must not be committed
 .env
 
