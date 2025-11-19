@@ -48,6 +48,10 @@ class BaseAlgorithmScene(Scene):
       - self.pseudocode_group  (Paragraph)
     """
 
+    # 預設索引指標樣式（子類別可覆寫）
+    POINTER_COLOR = MAROON_B
+    POINTER_FONT_SIZE = 24
+
     def construct(self):
         # 1) 取得輸入資料（預設為空 list，子類別可 override）
         self.input_data = self.get_input_data()
@@ -236,6 +240,81 @@ class BaseAlgorithmScene(Scene):
             mob.scale(scale_factor)
         # 將物件預設置中到目標 panel（子類別如需特殊位置，可在呼叫後再自行 move_to）
         mob.move_to(panel.get_center())
+
+    # ===================== 共用索引指標 helper =====================
+    def _create_index_pointer(self, label_text: str, position: str = "bottom") -> VGroup:
+        """
+        統一建立索引指標（例如 i, j, left, right）。
+
+        參數
+        ------
+        label_text
+            顯示在指標上的標籤文字（例如 "i", "j", "left"）。
+        position
+            - "bottom": 指標放在陣列下方，三角形朝上指向陣列
+            - "top"   : 指標放在陣列上方，三角形朝下指向陣列
+
+        使用說明
+        --------
+        - 建立後請搭配 `next_to` 將整個 VGroup 擺到對應元素附近，
+          不要自行旋轉 Triangle，以避免方向錯亂。
+        """
+        pointer = Triangle(
+            color=self.POINTER_COLOR,
+            fill_opacity=1.0,
+        ).scale(0.2)
+
+        label = Text(
+            label_text,
+            font_size=self.POINTER_FONT_SIZE,
+            color=self.POINTER_COLOR,
+        )
+
+        if position == "bottom":
+            # 預設 Triangle 朝上 → 放在陣列下方即可指向陣列
+            label.next_to(pointer, UP, buff=0.1)
+        elif position == "top":
+            # 在陣列上方時，三角形需朝下指向陣列
+            pointer.rotate(PI)
+            label.next_to(pointer, DOWN, buff=0.1)
+        else:
+            raise ValueError("position must be 'top' or 'bottom'")
+
+        pointer_group = VGroup(pointer, label)
+        pointer_group.pointer_triangle = pointer
+        pointer_group.pointer_position = position
+        return pointer_group
+
+    def _pointer_target_point(self, pointer: VGroup, target: Mobject, buff: float = 0.2) -> np.ndarray:
+        """
+        取得將指標尖端對準 target 後，整個指標 VGroup 應該移動到的中心座標。
+
+        - pointer: 由 `_create_index_pointer` 建立的 VGroup
+        - target : 要指向的 Mobject（例如陣列中的某個方塊）
+        - buff   : 指標尖端與 target 之間的額外距離
+        """
+        position = getattr(pointer, "pointer_position", "bottom")
+        triangle = getattr(pointer, "pointer_triangle", pointer.submobjects[0] if pointer.submobjects else pointer)
+
+        if position == "bottom":
+            anchor_point = target.get_bottom()
+            pointer_tip = triangle.get_top()
+            direction = DOWN
+        else:
+            anchor_point = target.get_top()
+            pointer_tip = triangle.get_bottom()
+            direction = UP
+
+        # pointer 的中心與尖端之間的向量，移動時需加回來
+        offset = pointer.get_center() - pointer_tip
+        return anchor_point + direction * buff + offset
+
+    def _move_pointer_to(self, pointer: VGroup, target: Mobject, buff: float = 0.2):
+        """
+        立即把指標移到 target 旁，尖端保持指向 target。
+        （若要動畫移動，請使用 `pointer.animate.move_to(self._pointer_target_point(...))`）
+        """
+        pointer.move_to(self._pointer_target_point(pointer, target, buff=buff))
 
     # ===================== pseudocode highlighter =====================
     def _init_pseudocode_highlighter(self):

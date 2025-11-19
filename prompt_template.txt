@@ -66,10 +66,62 @@ def get_input_data(self):
 ```
 - `def setup_animation_panel(self):`
   - 在動畫開始前，於 `self.anim_panel` 內建立初始物件（例如陣列方塊、節點、圖上的點）
+  - 所有代表「輸入資料本身」的物件（例如 array 方塊、list 節點、樹的節點），必須在演算法主迴圈開始前就被加入場景：
+    可以在 setup_animation_panel 結束前呼叫 self.add(...)，或在 run_algorithm_visual 的最開頭使用 self.play(FadeIn(...))
+
+禁止依賴 Manim 在第一次 animate 時自動把物件加進場景。
 - `def before_algorithm_visual(self):`
   - 在主要動畫前顯示導入文字、初始說明等
 - `def after_algorithm_visual(self):`
   - 在動畫結束後顯示總結說明
+
+
+### 索引指標（i, j, left, right 等）的統一寫法與最佳實踐（非常重要）
+
+BaseAlgorithmScene 已提供一個 helper：
+- `self._create_index_pointer(label_text: str, position: str = "bottom") -> VGroup`
+
+在任何演算法中需要 i, j, left, right 等索引指標時，**必須遵守以下模式**：
+
+1. **建立與初始化**（在 `setup_animation_panel` 中）：
+   - 使用 `_create_index_pointer` 建立
+   - **不要**呼叫 `set_opacity(0)`，也 **不要** `self.add()`
+   - **一定要使用一個 Python boolean flag (如 `self.i_visible`) 來追蹤顯示狀態**
+
+2. **移動與顯示**（在 `run_algorithm_visual` 迴圈中）：
+   - 檢查 flag：
+     - 若 `False`：先 `next_to` 設定位置，再 `play(FadeIn(pointer))`，最後設為 `True`
+     - 若 `True`：使用 `animate.next_to` 移動
+
+正確範例：
+```python
+# 1. 初始化
+def setup_animation_panel(self):
+    # ... 其他設定 ...
+    self.i_pointer = self._create_index_pointer("i", position="top")
+    # 初始時不 add，也不用 set_opacity
+    self.i_visible = False  # [關鍵] 使用 flag 追蹤狀態
+
+# 2. 迴圈內使用
+def run_algorithm_visual(self):
+    # ...
+    for i in range(n):
+        target = self.array_mobjects[i]
+        
+        if not self.i_visible:
+            # 第一次顯示：先定位 -> FadeIn 加入場景 -> 更新 flag
+            self.i_pointer.next_to(target, UP, buff=0.1)
+            self.play(FadeIn(self.i_pointer))
+            self.i_visible = True
+        else:
+            # 之後：使用動畫移動
+            self.play(self.i_pointer.animate.next_to(target, UP, buff=0.1))
+```
+
+**嚴禁事項：**
+- 不要自行建立 Triangle 或自行 rotate。
+- **不要**使用 `if self.pointer.fill_opacity == 0:` 或 `get_opacity()` 來判斷顯示狀態（這在 Manim 中不穩定）。
+- 務必使用 boolean flag 控制。
 
 
 ### ManimCE 版本要求
@@ -124,6 +176,7 @@ def swap_visual(self, i, j):
 - 對排序或陣列類演算法：
   - 在比較或交換時用顏色高亮
   - 可使用箭頭、標記（如 i, j, left, right）等清楚標示指標位置
+    - **若需要這些索引指標，務必使用 `self._create_index_pointer`，不要自行建立 Triangle 或自行旋轉。**
 - 所有常數（顏色、字型大小、間距等）可以直接在類別內定義，
   但不要重新定義 Base 已經提供的 layout & panel 結構。
 
