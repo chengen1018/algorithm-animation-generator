@@ -4,7 +4,7 @@ import glob
 import subprocess
 import shutil
 
-from llm_client import generate_manim_code
+from llm_client import generate_manim_code, review_manim_code
 
 PROMPT_TEMPLATE_PATH = "prompt_template.txt"  # 提示詞模板路徑
 # 將 LLM 產生的程式碼與手寫範例（generated_scene.py）分開，避免被覆蓋
@@ -21,14 +21,23 @@ def main():
     prompt = build_prompt(algorithm_name, input_data)  # 利用演算法名稱與輸入資料建立給 LLM 的完整 prompt
     generated_code = generate_manim_code(prompt)       # 使用 LLM 生成 Manim 程式碼
 
-    # 檢查生成程式碼是否有效，若有效則儲存程式碼、清除之前的輸出、渲染動畫
-    # 新版：AlgorithmAnimation 應該繼承 BaseAlgorithmScene，因此只檢查類別名稱存在即可
-    if generated_code and "class AlgorithmAnimation" in generated_code:
-        save_code(generated_code)        # 儲存程式碼
-        clean_previous_outputs()         # 清除之前的輸出
-        render_animation(input_data)     # 渲染動畫，並把使用者輸入傳給 Manim 子程序
-    else:
+    if not generated_code:
         print("\n抱歉，無法生成有效的 Manim 程式碼。請檢查您的輸入或 API 金鑰。")
+        return
+
+    reviewed_code = review_manim_code(prompt, generated_code)
+
+    if not reviewed_code:
+        print("\nReflection 審查階段失敗，沒有取得可用的程式碼。請調整輸入內容或稍後重試。")
+        return
+
+    if "class AlgorithmAnimation" not in reviewed_code:
+        print("\n審查後的程式碼缺少必須的 AlgorithmAnimation 類別，流程結束。")
+        return
+
+    save_code(reviewed_code)        # 儲存程式碼
+    clean_previous_outputs()         # 清除之前的輸出
+    render_animation(input_data)     # 渲染動畫，並把使用者輸入傳給 Manim 子程序
 
 
 def build_prompt(algorithm: str, data: str) -> str:
