@@ -7,14 +7,14 @@ import shutil
 from llm_client import generate_manim_code, review_manim_code
 
 PROMPT_TEMPLATE_PATH = "prompt_template.txt"  # 提示詞模板路徑
-# 將 LLM 產生的程式碼與手寫範例（generated_scene.py）分開，避免被覆蓋
+BASE_CLASS_PATH = "base_algorithm_scene.py"  # Base Class 原始碼路徑
 GENERATED_CODE_PATH = "generated_algo_scene.py"  # LLM 產生的 Manim 程式碼儲存位置
 MANIM_CLASS_NAME = "AlgorithmAnimation"  # LLM 生成的 Manim 類別名稱
 
 
 def main():
     # 向使用者取得要生成的演算法名稱與輸入資料
-    print("--- 歡迎使用 AI 演算法動畫師 (終端版) ---")
+    print("--- 歡迎使用 AI 演算法動畫師 ---")
     algorithm_name = input("請輸入演算法名稱 (例如: Bubble Sort): ")
     input_data = input("請輸入要處理的資料 (例如: [8, 2, 6, 4]): ")
 
@@ -41,9 +41,16 @@ def main():
 
 
 def build_prompt(algorithm: str, data: str) -> str:
+    # 讀取 prompt 模板
     with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
         template = f.read()
-    return template.replace("{{algorithm_name}}", algorithm).replace("{{user_input_data}}", data)
+    
+    # 讀取 Base Class 的原始碼
+    with open(BASE_CLASS_PATH, "r", encoding="utf-8") as f:
+        base_code = f.read()
+    return template.replace("{{algorithm_name}}", algorithm)\
+                    .replace("{{user_input_data}}", data)\
+                    .replace("{{base_class_code}}", base_code)
 
 
 def save_code(code: str):

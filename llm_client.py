@@ -30,7 +30,7 @@ def _extract_code_block(text: str) -> str:
     return text.strip()
 
 
-def generate_manim_code(prompt: str, model_name: str = "gemini-3-pro-preview") -> Optional[str]:
+def generate_manim_code(prompt: str, model_name: str = "gemini-2.5-pro") -> Optional[str]:
     """
     使用 Google Gemini 產生 Manim 程式碼。
 
@@ -57,7 +57,7 @@ def generate_manim_code(prompt: str, model_name: str = "gemini-3-pro-preview") -
 
 
 def review_manim_code(
-    prompt: str, draft_code: str, model_name: str = "gemini-3-pro-preview"
+    prompt: str, draft_code: str, model_name: str = "gemini-2.5-pro"
 ) -> Optional[str]:
     """使用 Reflection 階段檢查並修正初稿，回傳完整程式碼。"""
 
@@ -67,21 +67,38 @@ def review_manim_code(
 
     checklist = """
 [SYSTEM]
-You are a precise Manim code reviewer. Perform static analysis and fix issues in the draft.
+You are a strict code reviewer for a specific Manim project. 
+Your goal is to fix errors in the draft code based on the `BaseAlgorithmScene` contract.
 
-Hard requirements:
-- Keep the class name `AlgorithmAnimation` and ensure it inherits `BaseAlgorithmScene`.
-- Only use Python standard library and Manim Community Edition APIs (0.18+).
-- Include necessary imports: `from manim import *` and `from base_algorithm_scene import BaseAlgorithmScene`; add `import ast` when parsing input.
-- Forbidden (to keep execution deterministic and secure in an offline sandbox): network requests, file I/O, randomness, dynamic imports, or accessing local/remote resources.
-- Output exactly one Python code block containing the full script; no extra text.
+[BaseAlgorithmScene Contract]
+The abstract class `BaseAlgorithmScene` defines the control flow in its `construct()` method.
+Subclasses MUST follow this structure:
+1. `get_input_data(self)`: Returns the input data (e.g., list[int]).
+2. `get_pseudocode_lines(self)`: Returns a list of strings for the code display.
+3. `setup_animation_panel(self)`: Initializes Mobjects (squares, arrows) in `self.anim_panel`.
+4. `run_algorithm_visual(self)`: Contains the main animation logic (comparisons, swaps).
 
-[CHECKLIST]
-- Repair missing or incorrect imports.
-- Ensure only one scene class named `AlgorithmAnimation(BaseAlgorithmScene)` exists.
-- Verify hooks follow BaseAlgorithmScene expectations (no construct override).
-- Remove forbidden operations and keep animations deterministic.
-- Maintain compatibility with the provided task prompt and user input.
+[CHECKLIST - CRITICAL]
+1. **Mandatory Implementation**:
+   - The class **MUST** implement `get_pseudocode_lines(self) -> list[str]`.
+   - The class **MUST** implement `run_algorithm_visual(self)`.
+   - The class **MUST NOT** implement `construct(self)` (it is inherited).
+   - The class **MUST NOT** implement `algorithm(self)` or `setup_scene(self)` (these are invalid names).
+
+2. **Data Handling**:
+   - Ensure `get_input_data(self)` is used to parse input. 
+   - Do NOT access `self.input_str` or `self.user_input` directly; they do not exist.
+   - Use `self.input_data` (populated by Base) in `setup_animation_panel` and `run_algorithm_visual`.
+
+3. **Visual Helper Usage**:
+   - Use `self._pc_highlight(line_index)` for code highlighting.
+   - Use `self._info_push(text)` for status updates.
+   - Use `self._create_index_pointer(text)` for creating pointers (e.g., i, j).
+   - Use `self.play(...)` followed by state updates (Play-Then-Update pattern).
+
+4. **Formatting**:
+   - Ensure strictly ONE Python code block ` ```python ... ``` `.
+   - Keep imports: `from manim import *` and `from base_algorithm_scene import BaseAlgorithmScene`.
 
 [TASK CONTEXT]
 User prompt:
