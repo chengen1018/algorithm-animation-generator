@@ -14,7 +14,7 @@ MANIM_CLASS_NAME = "AlgorithmAnimation"  # LLM 生成的 Manim 類別名稱
 
 def main():
     # 向使用者取得要生成的演算法名稱與輸入資料
-    print("--- 歡迎使用 AI 演算法動畫師 (終端版) ---")
+    print("--- 歡迎使用 AI 演算法動畫生成器 ---")
     algorithm_name = input("請輸入演算法名稱 (例如: Bubble Sort): ")
     input_data = input("請輸入要處理的資料 (例如: [8, 2, 6, 4]): ")
 
