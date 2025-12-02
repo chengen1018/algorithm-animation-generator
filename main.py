@@ -18,7 +18,12 @@ def main():
     algorithm_name = input("請輸入演算法名稱 (例如: Bubble Sort): ")
     input_data = input("請輸入要處理的資料 (例如: [8, 2, 6, 4]): ")
 
-    prompt = build_prompt(algorithm_name, input_data)  # 利用演算法名稱與輸入資料建立給 LLM 的完整 prompt
+    # 建立給 LLM 的完整 prompt；若模板或 Base Class 檔案有問題則提前結束
+    prompt = build_prompt(algorithm_name, input_data)
+    if prompt is None:
+        # build_prompt 已顯示詳細錯誤訊息，這裡直接結束主程式即可
+        return
+
     generated_code = generate_manim_code(prompt)       # 使用 LLM 生成 Manim 程式碼
 
     # 檢查生成程式碼是否有效，若有效則儲存程式碼、清除之前的輸出、渲染動畫
@@ -31,15 +36,40 @@ def main():
         print("\n抱歉，無法生成有效的 Manim 程式碼。請檢查您的輸入或 API 金鑰。")
 
 
-def build_prompt(algorithm: str, data: str) -> str:
-    with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
-        template = f.read()
+def build_prompt(algorithm: str, data: str) -> str | None:
+    """
+    根據使用者輸入與模板、Base Class 原始碼組合出給 LLM 的完整提示詞。
+    若模板檔或 Base Class 檔案不存在或無法讀取，會印出友善錯誤訊息並回傳 None。
+    """
+    # 讀取提示詞模板
+    try:
+        with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
+            template = f.read()
+    except FileNotFoundError:
+        print(f"錯誤：找不到提示詞模板檔案：{PROMPT_TEMPLATE_PATH}。")
+        print("請確認該檔案是否存在於專案根目錄，或檔名是否正確。")
+        return None
+    except OSError as e:
+        print(f"錯誤：讀取提示詞模板檔案時發生問題：{e}")
+        return None
 
     # 讀取 Base Class 的原始碼
-    with open(BASE_CLASS_PATH, "r", encoding="utf-8") as f:
-        base_code = f.read()
+    try:
+        with open(BASE_CLASS_PATH, "r", encoding="utf-8") as f:
+            base_code = f.read()
+    except FileNotFoundError:
+        print(f"錯誤：找不到 Base Class 檔案：{BASE_CLASS_PATH}。")
+        print("請確認 base_algorithm_scene.py 是否存在於專案根目錄，或檔名是否正確。")
+        return None
+    except OSError as e:
+        print(f"錯誤：讀取 Base Class 檔案時發生問題：{e}")
+        return None
 
-    return template.replace("{{algorithm_name}}", algorithm).replace("{{user_input_data}}", data).replace("{{base_class_code}}", base_code)
+    return (
+        template.replace("{{algorithm_name}}", algorithm)
+        .replace("{{user_input_data}}", data)
+        .replace("{{base_class_code}}", base_code)
+    )
 
 
 def save_code(code: str):
@@ -127,7 +157,7 @@ def render_animation(input_data: str):
                 env=env,
             )
         except subprocess.CalledProcessError as e:
-            print("\n❌ Manim 渲染失敗！ ❌")
+            print("\nManim 渲染失敗！")
             print("AI 生成的程式碼可能存在語法或邏輯錯誤。")
             print("以下是 Manim 的錯誤訊息：")
             print("-" * 50)
@@ -138,7 +168,7 @@ def render_animation(input_data: str):
     video = _find_latest_video()
     if video:
         abs_path = os.path.abspath(video)
-        print(f"\n🎉 動畫已生成！影片檔案位於: {abs_path}")
+        print(f"\n動畫已生成，影片檔案位於: {abs_path}")
         try:
             if sys.platform == "win32":
                 os.startfile(video)
