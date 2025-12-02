@@ -7,7 +7,7 @@ import shutil
 from llm_client import generate_manim_code
 
 PROMPT_TEMPLATE_PATH = "prompt_template.txt"  # 提示詞模板路徑
-# 將 LLM 產生的程式碼與手寫範例（generated_scene.py）分開，避免被覆蓋
+BASE_CLASS_PATH = "base_algorithm_scene.py"  # Base Class 原始碼路徑
 GENERATED_CODE_PATH = "generated_algo_scene.py"  # LLM 產生的 Manim 程式碼儲存位置
 MANIM_CLASS_NAME = "AlgorithmAnimation"  # LLM 生成的 Manim 類別名稱
 
@@ -34,7 +34,12 @@ def main():
 def build_prompt(algorithm: str, data: str) -> str:
     with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
         template = f.read()
-    return template.replace("{{algorithm_name}}", algorithm).replace("{{user_input_data}}", data)
+
+    # 讀取 Base Class 的原始碼
+    with open(BASE_CLASS_PATH, "r", encoding="utf-8") as f:
+        base_code = f.read()
+
+    return template.replace("{{algorithm_name}}", algorithm).replace("{{user_input_data}}", data).replace("{{base_class_code}}", base_code)
 
 
 def save_code(code: str):
