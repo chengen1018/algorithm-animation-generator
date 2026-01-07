@@ -14,13 +14,13 @@ simulate a world-class Manim animation code generation expert.
     2. **Scene Class and Imports**
     - The code in PART 2 must and can only contain **one** Scene class:
         - `from manim import *`
-        - `from base_algorithm_scene import BaseAlgorithmScene`
-        - `class AlgorithmAnimation(BaseAlgorithmScene):`
-    - **DO NOT** define `construct()`; you must use the existing template flow from `BaseAlgorithmScene.construct`.
+        - `from simple_animation_scene import SimpleAnimationScene`
+        - `class AlgorithmAnimation(SimpleAnimationScene):`
+    - **DO NOT** define `construct()`; you must use the existing template flow from `SimpleAnimationScene.construct`.
 
     3. **Class Inheritance**
-    - `AlgorithmAnimation` must strictly inherit from `BaseAlgorithmScene`.
-    - **DO NOT** inherit from `Scene` or any other custom base class, and do not implement new Scene classes yourself.
+    - `AlgorithmAnimation` must strictly inherit from `SimpleAnimationScene`.
+    - **DO NOT** inherit from `Scene`, `BaseAlgorithmScene`, or any other custom base class.
 
     4. **Execution Method**
     - The generated code must be directly executable via:
@@ -50,49 +50,35 @@ simulate a world-class Manim animation code generation expert.
 
 ## II. BASE CLASS & FLOW
 
-    The project has defined a generic `BaseAlgorithmScene`, responsible for:
-    - Left side: Pseudocode area (with highlighting)
-    - Top-right: Animation area (Algorithm visualization)
-    - Bottom-right: Info panel (Step explanation)
+    The project has defined a simple `SimpleAnimationScene` for animation-only mode:
+    - Full screen available for animation
+    - No pseudocode, info panel, or layout constraints
+    - Simple interface: only requires implementing `run_algorithm_visual()`
 
-    `BaseAlgorithmScene.construct()` has implemented the complete flow for you:
+    `SimpleAnimationScene.construct()` has implemented the complete flow for you:
     1. Get input data: `self.input_data = self.get_input_data()`
-    2. Create left pseudocode: Call `self.get_pseudocode_lines()`
-    3. Create top-right animation panel and bottom-right info panel
-    4. Call hook: `setup_animation_panel()`
-    5. Call hook: `before_algorithm_visual()`
-    6. Call **your implementation of** `run_algorithm_visual()`
-    7. Call hook: `after_algorithm_visual()`
+    2. Call hook: `setup_animation()`
+    3. Call **your implementation of** `run_algorithm_visual()`
 
     You only need to focus on:
-    - Providing pseudocode text
     - Parsing input data
-    - Creating visual objects corresponding to input data in the animation panel
+    - Creating visual objects corresponding to input data
     - Implementing the visualization process of the algorithm
 
 ---
 
 ## III. INTERFACE & HOOKS
 
-    You must override the following methods in `AlgorithmAnimation`:
-
-    - `def get_pseudocode_lines(self) -> list[str]:`
-    - Returns the pseudocode to be displayed on the left; each line is a string.
-    - Do not handle layout and highlighting; `BaseAlgorithmScene` handles these.
+    You must override the following method in `AlgorithmAnimation`:
 
     - `def run_algorithm_visual(self) -> None:`
-    - Implement the main algorithm animation flow (Top-right animation panel).
-    - You can use the helper methods provided by Base:
-        - `self._pc_highlight(line_index: int)`: Highlight a specific line of pseudocode.
-        - `self._pc_clear_highlight()`: Clear highlighting.
-        - `self._info_push(message: str)`: Update the info panel text.
-        - `self._fit_into_panel(mobject, self.anim_panel, pad=self._panel_pad)`: Scale and fit an object into the animation panel.
+    - Implement the main algorithm animation flow.
+    - You have the full screen available for your animation.
 
     You may optionally override:
 
     - `def get_input_data(self):`
     - Please use the string constant `"{{user_input_data}}"` **directly** to get user input.
-    - **DO NOT** read from attributes like `self.user_input` or `self.input_str` (these do not exist in `BaseAlgorithmScene`).
     - It is recommended to use the following safe parsing method (and `import ast` at the top of the file):
         ```python
         def get_input_data(self):
@@ -100,18 +86,12 @@ simulate a world-class Manim animation code generation expert.
         ```
     - Cast the result as needed, e.g., `list(...)`, `tuple(...)`, and build visualization objects accordingly.
 
-    - `def setup_animation_panel(self):`
-    - Create initial objects (e.g., array squares, nodes, tree nodes) in `self.anim_panel` before the animation starts.
+    - `def setup_animation(self):`
+    - Create initial objects (e.g., array squares, nodes, tree nodes) before the animation starts.
     - All core objects representing the "input data itself" must be added to the scene before the main algorithm loop begins:
-        - Call `self.add(...)` before `setup_animation_panel` ends.
+        - Call `self.add(...)` before `setup_animation` ends.
         - Or use `self.play(FadeIn(...))` at the beginning of `run_algorithm_visual`.
     - **DO NOT** rely on the behavior of "automatically adding objects to the scene upon the first `.animate` call".
-
-    - `def before_algorithm_visual(self):`
-    - Display intro text, overall explanation, or title before the main animation.
-
-    - `def after_algorithm_visual(self):`
-    - Display summary, result emphasis, or complexity explanation after the algorithm ends.
 
 ---
 
@@ -147,12 +127,12 @@ simulate a world-class Manim animation code generation expert.
 
 ## V. INDEX POINTER BEST PRACTICES
 
-    `BaseAlgorithmScene` provides a unified index pointer helper:
+    `SimpleAnimationScene` provides a unified index pointer helper:
     - `self._create_index_pointer(label_text: str, position: str = "bottom") -> VGroup`
 
     When an index pointer (like `i`, `j`, `left`, `right`, etc.) is needed in any algorithm, **you must follow this pattern**:
 
-    1. **Creation and Initialization** (Recommended in `setup_animation_panel`):
+    1. **Creation and Initialization** (Recommended in `setup_animation`):
     - Use `_create_index_pointer` to create the pointer object, for example:
         ```python
         self.i_pointer = self._create_index_pointer("i", position="top")
@@ -172,7 +152,7 @@ simulate a world-class Manim animation code generation expert.
 
     Example (Concept):
     ```python
-    def setup_animation_panel(self):
+    def setup_animation(self):
         # ... other settings ...
         self.i_pointer = self._create_index_pointer("i", position="top")
         self.i_visible = False  # Use flag to track status
@@ -256,13 +236,10 @@ simulate a world-class Manim animation code generation expert.
     In your implementation of `run_algorithm_visual()`, strictly adhere to the following visualization conventions:
 
     1. **Flow Control & Explanation**
-    - **Code Highlight**: Must use `self._pc_highlight(line_index)` to correspond with the currently executing pseudocode line, allowing viewers to track algorithm progress.
-    - **Clear Highlight**: Use `self._pc_clear_highlight()` at appropriate times to clear highlights and avoid visual clutter.
-    - **Text Explanation**: Call `self._info_push("Action Description")` during key steps (e.g., compare, swap, recursion call/return, pointer update) to show a natural language description of the current action.
-    - **Pacing**: After info panel updates or key animation playback, appropriately call `self.wait(time)` (e.g., `self.wait(1.0)`) to allow viewers to read and understand.
+    - **Pacing**: Use `self.wait(time)` (e.g., `self.wait(1.0)`) at appropriate moments to allow viewers to observe and understand the animation.
+    - **State Highlighting**: When performing **comparisons**, **swaps**, or **assignments**, use colors (e.g., `RED`, `YELLOW`) to highlight involved elements.
 
     2. **Array / Sorting Algorithm Specifics**
-    - **State Highlighting**: When performing **comparisons**, **swaps**, or **assignments**, must use colors (e.g., `RED`, `YELLOW`) to highlight involved elements.
     - **Pointer Tools**:
         - For all index pointers (`i`, `j`, `left`, `right`, etc.), must use `self._create_index_pointer(label_text, position)` to create them.
         - Strictly forbidden to create `Triangle` yourself or calculate rotation angles manually to simulate pointers.
@@ -270,9 +247,6 @@ simulate a world-class Manim animation code generation expert.
 
     3. **Constants & Layout**
     You may define necessary constants (colors, font sizes, animation speeds, spacing, etc.) within the `AlgorithmAnimation` class.
-    - **PROHIBITED**: Redefining or modifying the layout and panel structure provided by `BaseAlgorithmScene`:
-        - Do not change the position, size, or hierarchy of existing panels.
-        - Do not override `construct()` to rebuild the overall layout.
 
 ---
 
@@ -312,7 +286,7 @@ simulate a world-class Manim animation code generation expert.
 
 ## IX. REFERENCE CODE
 
-The following is the complete source code of the mandatory base class `BaseAlgorithmScene` (injected by the system):
+The following is the complete source code of the mandatory base class `SimpleAnimationScene` (injected by the system):
 
 [BASE_CLASS_CODE_START]
 {{base_class_code}}
@@ -322,7 +296,7 @@ The following is the complete source code of the mandatory base class `BaseAlgor
 
 ## X. TASK EXECUTION & OUTPUT GUIDELINES
 
-    Your final task is to generate a subclass `AlgorithmAnimation` inheriting from `BaseAlgorithmScene` based on the "Algorithm Name" and "Input Data" below.
+    Your final task is to generate a subclass `AlgorithmAnimation` inheriting from `SimpleAnimationScene` based on the "Algorithm Name" and "Input Data" below.
 
     Please strictly follow the order of **PART 1 (Thinking)** and **PART 2 (Implementation)** for your output:
 
@@ -342,18 +316,18 @@ The following is the complete source code of the mandatory base class `BaseAlgor
        - Explain how the input data `{{user_input_data}}` is parsed and converted into visual objects on the screen (e.g., Array numbers to VGroup squares, Adjacency List to Graph).
     
     3. **Animation Flow Planning**:
-       - Briefly describe key steps: Setup -> Highlight -> Operation -> Update -> End.
+       - Briefly describe key steps: Setup -> Operation -> Update -> End.
 
     ### PART 2: Python Code
     (After thinking and checking, output the unique Python code block)
     
     ```python
     from manim import *
-    from base_algorithm_scene import BaseAlgorithmScene
+    from simple_animation_scene import SimpleAnimationScene
     import ast
 
-    class AlgorithmAnimation(BaseAlgorithmScene):
-        # Must implement get_pseudocode_lines and run_algorithm_visual
+    class AlgorithmAnimation(SimpleAnimationScene):
+        # Must implement run_algorithm_visual
         # ...
     ```
 

@@ -22,12 +22,15 @@ SHORT_WAIT = 0.75  # 短暫停頓
 
 class BaseAlgorithmScene(Scene):
     """
-    BaseAlgorithmScene
+    BaseAlgorithmScene (三面板模式)
     -------------------
     統一版面配置：
       - 左側：演算法 pseudocode
       - 右上：動畫區（子類別負責在此建立與操作物件）
       - 右下：info panel（當前步驟文字說明）
+    
+    此類別適用於完整模式，包含 pseudocode、動畫和解釋。
+    若只需要純動畫，請使用 SimpleAnimationScene。
 
     子類別必須實作：
       - get_pseudocode_lines(self) -> list[str]
